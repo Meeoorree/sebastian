@@ -1,0 +1,47 @@
+wake_word:
+  name: Sebastian
+  vosk_model: models/vosk-model-small-en-us-0.15
+  chunk_size: 1600
+  phrases:
+  - sebastian
+  stop_phrases:
+  - shut up
+  - stop
+  - stop it
+  - be quiet
+  - cancel
+  - enough
+stt:
+  model: large-v3-turbo
+  device: cuda
+  compute_type: float16
+  cpu_model: small.en
+  silence_seconds: 1.2     # stop after this much quiet once you have spoken
+  no_speech_timeout: 6     # give up if you say nothing
+  prompt: Sebastian, open VS Code, Visual Studio Code, Yandex Browser, new tab, WSL, Ubuntu, terminal, Spotify, playlist.
+llm:
+  active_provider: deepseek
+  temperature: 0.7
+  providers:
+    deepseek:
+      type: openai
+      label: DeepSeek
+      model: deepseek-flash
+      base_url: https://api.deepseek.com
+context:
+  max_messages: 10
+  summarize_after: 8
+  max_tokens: 2500
+tts:
+  voice: af_heart
+  speed: 1.1
+  name_phonemes: "s\u02cc\u025bb\u0251sti\u02c8\u0251n"  # IPA s-e-b-a-s-t-i-A-N (stress on last syllable); delete for default English
+memory:
+  db_path: sebastian/data/memory.db
+  chroma_path: sebastian/data/chroma
+  top_k: 3
+tools:
+  allowed_paths:
+  - ~/Documents
+  - ~/Desktop
+  code_timeout: 10

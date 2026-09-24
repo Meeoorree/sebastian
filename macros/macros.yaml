@@ -1,0 +1,27 @@
+# Trigger macros for Sebastian.
+# Checked BEFORE the LLM (see sebastian/main.py::_process_request), so these phrases
+# fire deterministically and instantly instead of relying on the model to guess.
+#
+#   triggers : regex patterns, case-insensitive, matched with re.search on the
+#              raw user text (voice transcript or typed command)
+#   speak    : what Sebastian says back
+#   steps    : tool calls, executed in order via sebastian.tools.router.dispatch
+
+macros:
+  - name: beer_dota
+    triggers:
+      - "\\bi\\s+want\\s+(a\\s+|some\\s+)?beer\\b"
+      - "\\bi'?d\\s+(like|love)\\s+(a\\s+)?beer\\b"
+      - "\\bget\\s+me\\s+(a\\s+)?beer\\b"
+      - "\\bbonne\\s+bi[eè]re\\b"
+      - "я\\s+хочу\\s+пиво"
+      - "хочу\\s+пив[ао]"
+    speak: "On it. Opening Steam and starting Dota 2."
+    steps:
+      - tool: open_app
+        args:
+          name: steam
+      - tool: launch_steam_game
+        args:
+          appid: 570
+          name: "Dota 2"

@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+sebastian/data/
+.env
+*.egg-info/
+dist/
+.pytest_cache/
+.venv/
+.claude/
+
+*.log
+*.wav
+model_cache/
+models/
+*.bak*
