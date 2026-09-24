@@ -14,7 +14,7 @@ Say **"Sebastian"**, wait for "Yes?", and tell him what to do: open apps, click 
 - **33 desktop tools, chained agentically** — screen reading (OCR), clicking, typing, window focus, app launch (incl. Steam games), web search, weather, clipboard, volume, timers, files, sandboxed Python. Up to 15 tool calls per request.
 - **Macros** — phrases in `macros/macros.yaml` run a fixed list of tools instantly, without asking the LLM (English or Russian triggers).
 - **Memory** — remembers facts across sessions (SQLite + ChromaDB).
-- **Web dashboard** at `http://localhost:7860` — chat, live tool log, provider switching, settings. Bound to localhost only.
+- **Web dashboard** at `http://localhost:7860` — chat, live tool log, provider switching, settings. Bound to localhost only, and it refuses requests from other websites open in your browser (Origin and Host checks), so a web page can't chat with Sebastian behind your back.
 - **Speaks his name right** — custom pronunciation via Kokoro phonemes (`tts.name_phonemes` in `config.yaml`).
 
 ## Setup

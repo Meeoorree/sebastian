@@ -7,13 +7,45 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.websockets import WebSocketClose
 
 from sebastian.tts import speak_streamed, stop_speaking, is_speaking
 
 _STATIC_DIR = Path(__file__).parent / "static"
+_LOCAL_HOSTS = ["localhost", "127.0.0.1"]
+_port = 7860  # set by start_web_background
+
+
+class _OriginGuard:
+    """Refuse requests sent by other websites open in the browser.
+
+    Browsers attach an Origin header to WebSocket and cross-site requests. Without
+    this check any page could open ws://127.0.0.1:7860/ws and chat with the LLM,
+    which can run code. No Origin (curl, local scripts) is allowed.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            origin = dict(scope["headers"]).get(b"origin")
+            allowed = {f"http://{h}:{_port}" for h in _LOCAL_HOSTS}
+            if origin is not None and origin.decode("latin-1") not in allowed:
+                if scope["type"] == "websocket":
+                    await WebSocketClose(code=1008)(scope, receive, send)
+                else:
+                    await PlainTextResponse("Forbidden origin", status_code=403)(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
 
 app = FastAPI(title="Sebastian")
+app.add_middleware(_OriginGuard)
+# DNS rebinding: a page on evil.example re-pointed to 127.0.0.1 still sends Host: evil.example.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_LOCAL_HOSTS)
 _clients: list[WebSocket] = []
 _loop: asyncio.AbstractEventLoop | None = None
 
@@ -225,6 +257,8 @@ async def websocket_endpoint(ws: WebSocket):
 
 def start_web_background(port: int = 7860) -> None:
     """Launch web UI in a daemon thread. Non-blocking."""
+    global _port
+    _port = port
     from sebastian.main import register_event_listener
     register_event_listener(_broadcast_to_ws)
 

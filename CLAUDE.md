@@ -27,7 +27,7 @@ The DeepSeek key comes from the `DEEPSEEK_API_KEY` environment variable. Never w
 
 In the sandbox, run:
 `pytest -q --ignore=tests/test_tts.py --ignore=tests/test_memory.py --deselect tests/test_tools.py::test_router_dispatch_unknown_tool --deselect tests/test_tools.py::test_router_dispatch_known_tool`
-(31 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
+(36 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
 
 ## Architecture
 
@@ -65,15 +65,12 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 5. **Silence detection** uses the measured noise floor (ignoring all-zero chunks from mic startup) plus 15% of the speech peak. Tune it with `stt.silence_seconds` and `stt.no_speech_timeout`; don't hard-code RMS values.
 6. **Heavy dependencies:** torch (via Kokoro), CUDA DLLs and ~2 GB of models. Don't add dependencies without a strong reason. The owner's network is unreliable, so every download needs retries.
 7. `config.yaml` is re-read on almost every call, and the web UI rewrites it with `yaml.dump`, which drops comments.
+8. **Web UI origin guard.** `web.py` refuses any request whose `Origin` isn't `http://localhost:<port>` or `http://127.0.0.1:<port>`, and any `Host` other than those two names (DNS rebinding). This stops other websites from driving the LLM's tools through `/ws`. Don't remove it or add CORS. Opening the dashboard under another name (a LAN IP, a hostname) is refused by design. `tests/test_web.py` covers it.
 
 ## Review findings (prioritized backlog)
 
 ### P0: security
 
-- **Cross-site WebSocket hijacking → arbitrary code execution.** `web.py` `/ws` calls `ws.accept()` without checking `Origin`. Any website open in the owner's browser can connect to `ws://127.0.0.1:7860/ws` and send `{"type":"chat","text":...}`, and the LLM then has `run_python`, `write_file`, `power_command` and so on.
-  - Fix: reject the connection unless the Origin is `http://localhost:7860` or `http://127.0.0.1:7860`.
-  - Also add `TrustedHostMiddleware(allowed_hosts=["localhost","127.0.0.1"])` against DNS rebinding.
-  - Add a test that a foreign Origin is refused.
 - **Prompt injection → tools.** Text from `fetch_page`, `web_search`, `read_screen` (OCR) and files goes straight into the LLM context. The system prompt says "No moralizing, no refusals". A malicious page can therefore talk the model into running tools.
   - Fix: require spoken or typed confirmation for destructive tools: `run_python`, `write_file`, `power_command`, `kill_process`, `type_text` + `press_key` sequences.
   - Soften the "no refusals" wording.
