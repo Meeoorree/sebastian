@@ -205,7 +205,7 @@ TOOL_SCHEMAS = [
     # --- Code ---
     {"type": "function", "function": {
         "name": "run_python",
-        "description": "Execute Python code, returns stdout/stderr.",
+        "description": "Run Python code on the owner's PC with the owner's full permissions (NOT sandboxed; only a time limit). The owner must say yes first. Returns stdout/stderr.",
         "parameters": {"type": "object", "properties": {
             "code": {"type": "string"}}, "required": ["code"]}}},
 

@@ -287,6 +287,11 @@
   }
   .tool-name { color: var(--gold); font-weight: 600; }
   .tool-result { color: var(--text-dim); margin-top: 6px; font-size: 11px; }
+  .msg.confirm { border-color: var(--gold); }
+  .confirm-detail {
+    white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto;
+    margin: 8px 0 0; font-size: 11px; color: var(--text);
+  }
 
   /* ─── Activity Bar ─── */
   .activity-bar {
@@ -919,6 +924,7 @@ function connect() {
       }
       case 'tool': setStatusText('TOOL: ' + msg.name.toUpperCase()); showActivity('EXECUTING: ' + msg.name); addActivityStep(); addToolCall(msg.name, msg.args); addLiveFeed('tool', '[Tool: ' + msg.name + ']'); break;
       case 'tool_result': updateToolResult(msg.name, msg.result); break;
+      case 'confirm': addConfirm(msg.name, msg.detail); break;
       case 'response': setThinking(false); hideActivity(); setReactorState('speaking'); setStatusText('SPEAKING'); addMsg('assistant', msg.text); addLiveFeed('assistant', msg.text); break;
       case 'mute': isMuted = msg.muted; updateMuteUI(); addMsg('system', msg.muted ? '🔇 MUTED' : '🔊 UNMUTED'); break;
       case 'provider_changed': loadProviders(); break;
@@ -963,6 +969,18 @@ function addToolCall(name, args) {
   entry.innerHTML = '<span class="tl-name">' + esc(name) + '</span>';
   entry.id = 'tl-' + name + '-' + Date.now();
   toolLog.prepend(entry);
+}
+
+// A tool that waits for the owner's OK: show the whole action, not a 120-char preview.
+function addConfirm(name, detail) {
+  toolEmpty.style.display = 'none';
+  const div = document.createElement('div'); div.className = 'msg-wrapper left';
+  const inner = document.createElement('div'); inner.className = 'msg tool-call confirm';
+  const title = document.createElement('div');
+  title.innerHTML = '<span class="tool-name">' + esc(name) + '</span> is waiting for your OK: say or type yes / no';
+  const pre = document.createElement('pre'); pre.className = 'confirm-detail'; pre.textContent = detail;
+  inner.appendChild(title); inner.appendChild(pre);
+  div.appendChild(inner); msgEl.appendChild(div); msgEl.scrollTop = msgEl.scrollHeight;
 }
 
 function updateToolResult(name, result) {

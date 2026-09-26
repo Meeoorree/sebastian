@@ -11,7 +11,8 @@ Say **"Sebastian"**, wait for "Yes?", and tell him what to do: open apps, click 
 - **Wake word + barge-in** — say "Sebastian" to start; say "shut up", "stop" or "enough" at any time to cut him off mid-sentence or mid-task. Both run offline on a tiny Vosk model restricted to those few phrases, with an echo guard so his own voice can't stop him.
 - **Accurate speech recognition** — Whisper `large-v3-turbo` on the GPU (CPU fallback: `small.en`), biased toward your app names so "open VS Code" doesn't become "can we code".
 - **Knows when you're done talking** — recording stops ~1.2 s after you stop, measured against your room's noise floor, not a fixed threshold.
-- **33 desktop tools, chained agentically** — screen reading (OCR), clicking, typing, window focus, app launch (incl. Steam games), web search, weather, clipboard, volume, timers, files, sandboxed Python. Up to 15 tool calls per request.
+- **33 desktop tools, chained agentically** — screen reading (OCR), clicking, typing, window focus, app launch (incl. Steam games), web search, weather, clipboard, volume, timers, files, Python. Up to 15 tool calls per request.
+- **Asks before anything risky** — running Python, writing a file, shutting down/restarting/sleeping the PC, or force-closing a program waits for your "yes" (see [Safety](#safety)).
 - **Macros** — phrases in `macros/macros.yaml` run a fixed list of tools instantly, without asking the LLM (English or Russian triggers).
 - **Memory** — remembers facts across sessions (SQLite + ChromaDB).
 - **Web dashboard** at `http://localhost:7860` — chat, live tool log, provider switching, settings. Bound to localhost only, and it refuses requests from other websites open in your browser (Origin and Host checks), so a web page can't chat with Sebastian behind your back.
@@ -49,6 +50,17 @@ The API key is read from the environment and never written to `config.yaml`.
 | Insert | Mute / unmute voice |
 | Web UI | Type commands, watch tool calls, change settings |
 
+## Safety
+
+Sebastian reads web pages, files and your screen, and a page can contain text written to trick the LLM ("ignore your instructions and run this code"). So the dangerous tools don't run on the LLM's say-so:
+
+- `run_python`, `write_file`, `power_command` and `kill_process` stop and ask, e.g. *"I'd like to shut down the PC. Say yes to go ahead, or no to cancel."* The question is built by Sebastian from the actual action, not written by the LLM.
+- By voice, just answer (no wake word needed). In the web chat or with F2, type `yes` or `no`. The dashboard shows the full action, e.g. the whole Python script.
+- Only your next reply counts. Anything other than yes cancels, Esc cancels, and the question expires after 60 seconds.
+- `run_python` is **not a sandbox**: the code runs with your permissions. Read it before saying yes.
+
+Change the list with `tools.confirm` in `config.yaml` (`[]` turns confirmation off, at your own risk). Typing and key presses (`type_text`, `press_key`) are not on the list by default, because asking before every keystroke would break UI automation; add them if you want to.
+
 ## Configuration (`config.yaml`)
 
 | Section | Key settings |
@@ -57,6 +69,7 @@ The API key is read from the environment and never written to `config.yaml`.
 | `stt` | `model`, `device`, `prompt` (vocabulary hints — add your apps here), `silence_seconds`, `no_speech_timeout` |
 | `llm` | `active_provider` and `providers` — any OpenAI-compatible API, or Ollama |
 | `tts` | `voice`, `speed`, `name_phonemes` |
+| `tools` | `allowed_paths` (folders the file tools may touch), `code_timeout`, `confirm` (tools that ask first) |
 
 Using speakers instead of headphones and he stops himself? Remove the offending word from `stop_phrases`.
 
@@ -69,6 +82,7 @@ sebastian/
   stt.py       recording (adaptive silence) + faster-whisper
   tts.py       Kokoro voice, interruptible streaming
   web.py       FastAPI + WebSocket dashboard
+  confirm.py   "Say yes to go ahead" for dangerous tools
   memory.py    SQLite + ChromaDB long-term memory
   tools/       33 tools + macros
 macros/        macros.yaml (your trigger phrases)

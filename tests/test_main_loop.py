@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from sebastian import confirm
+
 
 class _Context:
     def __init__(self):
@@ -45,7 +47,9 @@ def main(monkeypatch):
     monkeypatch.delitem(sys.modules, "sebastian.main", raising=False)
     m = importlib.import_module("sebastian.main")
     monkeypatch.setattr(m, "_play_beep", lambda: None)
+    confirm.cancel()
     yield m
+    confirm.cancel()
     sys.modules.pop("sebastian.main", None)
 
 
@@ -105,3 +109,91 @@ def test_loop_stops_after_max_tool_calls(main, monkeypatch):
     _, ran = _use(main, monkeypatch, "openai", replies)
     assert main._call_llm([{"role": "user", "content": "loop"}]) == "Done."
     assert len(ran) == main._MAX_TOOL_LOOPS
+
+
+# --- dangerous tools wait for the owner's yes (prompt-injection guard) ---
+
+CODE = {"code": "print(42)"}
+
+
+def test_dangerous_tool_waits_for_owner_yes(main, monkeypatch):
+    sent, ran = _use(main, monkeypatch, "openai", [
+        _msg(tool_calls=[_call("run_python", '{"code": "print(42)"}')]),
+        _msg(content="It printed 42."),
+    ])
+    question = main._process_request("run some code")
+    assert "Python" in question and "yes" in question
+    assert ran == [] and len(sent) == 1  # nothing ran, and the LLM got no chance to answer itself
+
+    assert main._process_request("Yes.") == "It printed 42."
+    assert ran == [("run_python", CODE)]
+    assert "run_python ok" in sent[1][-1]["content"]  # the LLM sees the result to report it
+
+
+def test_no_cancels_dangerous_tool(main, monkeypatch):
+    _, ran = _use(main, monkeypatch, "openai", [
+        _msg(tool_calls=[_call("power_command", '{"action": "shutdown"}')]),
+    ])
+    assert "shut down the PC" in main._process_request("turn off the computer")
+    assert "won't" in main._process_request("no")
+    assert ran == []
+
+
+def test_other_reply_cancels_and_is_handled_normally(main, monkeypatch):
+    _, ran = _use(main, monkeypatch, "openai", [
+        _msg(tool_calls=[_call("kill_process", '{"name": "chrome"}')]),
+        _msg(content="Sunny."),
+        _msg(content="Yes to what?"),
+    ])
+    main._process_request("close chrome")
+    assert main._process_request("what's the weather") == "Sunny."
+    assert main._process_request("yes") == "Yes to what?"  # the old question is gone
+    assert ran == []
+
+
+def test_safe_tools_run_before_the_question(main, monkeypatch):
+    _, ran = _use(main, monkeypatch, "openai", [
+        _msg(tool_calls=[_call("read_screen", "{}", "a"), _call("write_file", '{"path": "x", "content": "y"}', "b")]),
+    ])
+    assert "write the file x" in main._process_request("save the screen text")
+    assert ran == [("read_screen", {})]
+
+
+def test_confirm_list_comes_from_config(main, monkeypatch):
+    _, ran = _use(main, monkeypatch, "openai", [
+        _msg(tool_calls=[_call("run_python", '{"code": "print(42)"}')]),
+        _msg(content="42"),
+    ], tools_cfg={"confirm": []})
+    assert main._process_request("run some code") == "42"
+    assert ran == [("run_python", CODE)]
+
+
+def test_abort_cancels_open_question(main, monkeypatch):
+    _use(main, monkeypatch, "openai", [_msg(tool_calls=[_call("run_python", '{"code": "1"}')])])
+    main._process_request("run some code")
+    main.abort_all()
+    assert not confirm.is_pending()
+
+
+def test_voice_answer_needs_no_wake_word(main, monkeypatch):
+    _, ran = _use(main, monkeypatch, "openai", [
+        _msg(tool_calls=[_call("kill_process", '{"name": "chrome"}')]),
+        _msg(content="Chrome is closed."),
+    ])
+    heard = iter(["close chrome", "yes"])
+    spoken = []
+    monkeypatch.setattr(main, "_listen", lambda: next(heard))
+    monkeypatch.setattr(main, "_speak_streamed_if_unmuted", spoken.append)
+    main._handle_wake_inner()
+    assert ran == [("kill_process", {"name": "chrome"})]
+    assert "force-close chrome" in spoken[0] and spoken[1] == "Chrome is closed."
+
+
+def test_voice_silence_cancels_question(main, monkeypatch):
+    _, ran = _use(main, monkeypatch, "openai", [_msg(tool_calls=[_call("kill_process", '{"name": "chrome"}')])])
+    heard = iter(["close chrome", ""])
+    said = []
+    monkeypatch.setattr(main, "_listen", lambda: next(heard))
+    monkeypatch.setattr(main, "_speak_if_unmuted", said.append)
+    main._handle_wake_inner()
+    assert ran == [] and not confirm.is_pending() and said[-1] == "Okay, cancelled."

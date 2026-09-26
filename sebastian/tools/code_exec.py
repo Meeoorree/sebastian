@@ -12,7 +12,11 @@ def _load_config():
         return yaml.safe_load(f)
 
 def run_python(code: str) -> str:
-    """Execute Python code in a subprocess sandbox. Returns stdout/stderr."""
+    """Run Python code in a separate process. Returns stdout/stderr.
+
+    Not a sandbox: the code has the owner's full permissions, only a timeout.
+    That is why run_python waits for the owner's yes (see sebastian/confirm.py).
+    """
     timeout = _load_config()["tools"]["code_timeout"]
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
         f.write(code)

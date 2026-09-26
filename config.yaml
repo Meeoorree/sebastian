@@ -45,3 +45,8 @@ tools:
   - ~/Documents
   - ~/Desktop
   code_timeout: 10
+  confirm:     # these tools wait for your "yes" before running; [] turns this off
+  - run_python
+  - write_file
+  - power_command
+  - kill_process

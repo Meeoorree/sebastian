@@ -27,7 +27,7 @@ The DeepSeek key comes from the `DEEPSEEK_API_KEY` environment variable. Never w
 
 In the sandbox, run:
 `pytest -q --ignore=tests/test_tts.py --ignore=tests/test_memory.py --deselect tests/test_tools.py::test_router_dispatch_unknown_tool --deselect tests/test_tools.py::test_router_dispatch_known_tool`
-(39 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
+(69 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
 
 ## Architecture
 
@@ -40,6 +40,7 @@ main.handle_wake (worker thread)   main.abort_all()
    -> stt.transcribe_audio (faster-whisper) -> _process_request:
         macros.match_macro? -> run steps directly (no LLM)
         else LLM tool loop (<=15 calls) via tools/router.dispatch
+        dangerous tool? -> stop, ask "Say yes"; the next input answers (confirm.py)
    -> tts.speak_streamed (Kokoro, interruptible)
 web.py (uvicorn thread, 127.0.0.1:7860): dashboard + /ws chat; events via main._broadcast
 keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
@@ -51,6 +52,7 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 | `sebastian/wake.py` | Vosk recognizer restricted to wake + stop phrases. Echo guard: ignores a stop word that appears in the sentence being spoken |
 | `sebastian/stt.py` | Adaptive-silence recording; Whisper `large-v3-turbo` on CUDA, `small.en` CPU fallback; adds pip `nvidia/*/bin` DLL folders on Windows |
 | `sebastian/tts.py` | Kokoro; `_pronounce()` rewrites the name to `[Sebastian](/phonemes/)`; `current_text()` feeds the echo guard |
+| `sebastian/confirm.py` | "Say yes to go ahead": open question, yes/no matching, 60 s timeout |
 | `sebastian/tools/router.py` | `TOOL_SCHEMAS` (sent to the LLM) and `dispatch(name, args)` |
 | `sebastian/tools/macros.py` + `macros/macros.yaml` | Regex triggers checked before the LLM |
 | `sebastian/memory.py`, `context.py` | SQLite + ChromaDB facts; sliding-window context with summarization |
@@ -66,15 +68,13 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 6. **Heavy dependencies:** torch (via Kokoro), CUDA DLLs and ~2 GB of models. Don't add dependencies without a strong reason. The owner's network is unreliable, so every download needs retries.
 7. `config.yaml` is re-read on almost every call, and the web UI rewrites it with `yaml.dump`, which drops comments.
 8. **Web UI origin guard.** `web.py` refuses any request whose `Origin` isn't `http://localhost:<port>` or `http://127.0.0.1:<port>`, and any `Host` other than those two names (DNS rebinding). This stops other websites from driving the LLM's tools through `/ws`. Don't remove it or add CORS. Opening the dashboard under another name (a LAN IP, a hostname) is refused by design. `tests/test_web.py` covers it.
+9. **Confirmation for dangerous tools.** Tools in `tools.confirm` (default `run_python`, `write_file`, `power_command`, `kill_process`) never run from the LLM loop: `_run_tool_loop` stops and returns `confirm.ask(...)`, and only the owner's next input, checked at the top of `_process_request` via `confirm.resolve`, can run exactly that action. Never let tool output or LLM text reach `confirm.resolve`. The question text is built from the arguments (sanitized), not by the LLM. `tests/test_confirm.py` and `tests/test_main_loop.py` cover it.
 
 ## Review findings (prioritized backlog)
 
 ### P0: security
 
-- **Prompt injection → tools.** Text from `fetch_page`, `web_search`, `read_screen` (OCR) and files goes straight into the LLM context. The system prompt says "No moralizing, no refusals". A malicious page can therefore talk the model into running tools.
-  - Fix: require spoken or typed confirmation for destructive tools: `run_python`, `write_file`, `power_command`, `kill_process`, `type_text` + `press_key` sequences.
-  - Soften the "no refusals" wording.
-- **`run_python` is not a sandbox.** It runs arbitrary code as the user, with only a timeout. Either rename the docs and schema description to say so honestly, or gate it behind confirmation (above).
+- **Prompt injection via typing.** `type_text` + `press_key` (e.g. `win+r`, type a command, `enter`) can still run commands without confirmation. They are not in `tools.confirm` by default because UI automation types constantly. Possible fix: confirm only risky sequences (a Run dialog, a terminal window focused).
 
 ### P1: bugs the owner has hit
 
