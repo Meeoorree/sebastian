@@ -1,13 +1,7 @@
 from __future__ import annotations
 from collections import deque
-from pathlib import Path
-import yaml
+from sebastian.config import load as _load_config
 
-_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
-
-def _load_config():
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
 
 from sebastian.llm import chat  # noqa: E402 — must be module-level for patching
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import chromadb
 from sqlalchemy import create_engine, text
 
-_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
+from sebastian import config
 
 
 def _resolve_path(raw: str) -> Path:
@@ -14,7 +14,7 @@ def _resolve_path(raw: str) -> Path:
     p = Path(raw)
     if p.is_absolute():
         return p
-    return (_CONFIG_PATH.parent / raw).resolve()
+    return (config.PATH.parent / raw).resolve()
 
 
 class Memory:
@@ -24,20 +24,16 @@ class Memory:
         chroma_path: str | None = None,
         top_k: int | None = None,
     ):
-        import yaml
-
         _cfg_top_k = 3  # default if config not available
         if db_path is None or chroma_path is None:
-            with open(_CONFIG_PATH) as f:
-                cfg = yaml.safe_load(f)["memory"]
+            cfg = config.load()["memory"]
             db_path = db_path or str(_resolve_path(cfg["db_path"]))
             chroma_path = chroma_path or str(_resolve_path(cfg["chroma_path"]))
             _cfg_top_k = cfg.get("top_k", 3)
         else:
             # paths provided directly (e.g. from tests); try to read top_k from config
             try:
-                with open(_CONFIG_PATH) as f:
-                    cfg = yaml.safe_load(f)["memory"]
+                cfg = config.load()["memory"]
                 _cfg_top_k = cfg.get("top_k", 3)
             except Exception:
                 pass

@@ -12,8 +12,6 @@ import time
 import threading
 import msvcrt
 from datetime import datetime
-from pathlib import Path
-import yaml
 import numpy as np
 import sounddevice as sd
 import ollama
@@ -28,9 +26,9 @@ from sebastian import confirm
 from sebastian.memory import Memory
 from sebastian.tools.router import TOOL_SCHEMAS, dispatch
 from sebastian.tools.macros import match_macro, run_macro
+from sebastian.config import load as _load_config, save as _save_config
 
 _MAX_TOOL_LOOPS = 15
-_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
 # Global abort — Esc sets this, stops everything (speech + tool loop + follow-up)
 _abort = threading.Event()
@@ -151,16 +149,6 @@ def _system_prompt() -> str:
         "Answer in 1-3 sentences unless more is clearly needed. "
         f"Current date and time: {now}."
     )
-
-
-def _load_config() -> dict:
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
-
-
-def _save_config(cfg: dict) -> None:
-    with open(_CONFIG_PATH, "w") as f:
-        yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
 
 
 def get_providers() -> dict:
@@ -444,7 +432,6 @@ def _process_request(user_text: str) -> str:
 
     _broadcast({"type": "response", "text": response_text})
     return response_text
-
 
 
 def _keyboard_listener() -> None:

@@ -1,15 +1,10 @@
 from pathlib import Path
 import re
-import yaml
 import numpy as np
 import sounddevice as sd
 import threading
+from sebastian.config import load as _load_config
 
-_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
-
-def _load_config():
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
 
 _pipeline = None
 _voice_tensor = None

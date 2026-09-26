@@ -1,14 +1,6 @@
 """Lightweight LLM chat function for internal tasks (context summarization, etc.)."""
 import os
-from pathlib import Path
-import yaml
-
-_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
-
-
-def _load_config():
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
+from sebastian.config import load as _load_config
 
 
 def get_api_key(provider: dict) -> str:

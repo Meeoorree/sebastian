@@ -2,14 +2,8 @@ import subprocess
 import sys
 import tempfile
 import os
-import yaml
-from pathlib import Path
+from sebastian.config import load as _load_config
 
-_CONFIG_PATH = Path(__file__).parent.parent.parent / "config.yaml"
-
-def _load_config():
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
 
 def run_python(code: str) -> str:
     """Run Python code in a separate process. Returns stdout/stderr.

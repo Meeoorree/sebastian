@@ -3,15 +3,9 @@ import json
 from pathlib import Path
 import threading
 import time
-import yaml
+from sebastian.config import load as _load_config
 
 _ROOT = Path(__file__).parent.parent
-_CONFIG_PATH = _ROOT / "config.yaml"
-
-
-def _load_config():
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
 
 
 # ─── Mic pause/resume for STT recording ───

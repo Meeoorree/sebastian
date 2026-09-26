@@ -1,13 +1,6 @@
 import os
-import yaml
 from pathlib import Path
-
-_CONFIG_PATH = Path(__file__).parent.parent.parent / "config.yaml"
-
-
-def _load_config():
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
+from sebastian.config import load as _load_config
 
 
 def _check_allowed(path: str) -> None:

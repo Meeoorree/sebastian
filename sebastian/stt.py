@@ -1,8 +1,8 @@
 import os
 import sys
 from pathlib import Path
-import yaml
 import numpy as np
+from sebastian.config import load as _load_config
 
 
 def _add_cuda_dlls() -> None:
@@ -17,11 +17,6 @@ def _add_cuda_dlls() -> None:
 
 _add_cuda_dlls()
 
-_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
-
-def _load_config():
-    with open(_CONFIG_PATH) as f:
-        return yaml.safe_load(f)
 
 _model = None
 _model_device = None  # track what device the model is on
