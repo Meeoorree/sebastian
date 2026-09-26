@@ -18,6 +18,8 @@ start.bat                    :: run (sets HF_HOME, PYTHONUTF8=1, runs python -m 
 .venv\Scripts\python -m pytest -q
 ```
 
+**CI:** `.github/workflows/tests.yml` runs `pytest --ignore=tests/test_memory.py` on `windows-latest` with `requirements-test.txt`, without `PYTHONUTF8` (so cp1252 encoding bugs show up). Keep it green; add new light test deps to `requirements-test.txt`.
+
 API keys come only from environment variables: each provider's `api_key_env` names one (DeepSeek: `DEEPSEEK_API_KEY`). The repo is public, so never write a key to `config.yaml`; `web.py` refuses raw keys and never returns key values, and `tests/test_web.py` checks both.
 
 **Tests:** on Linux or in a cloud sandbox, only part of the suite can run:
@@ -27,7 +29,7 @@ API keys come only from environment variables: each provider's `api_key_env` nam
 
 In the sandbox, run:
 `pytest -q --ignore=tests/test_tts.py --ignore=tests/test_memory.py --deselect tests/test_tools.py::test_router_dispatch_unknown_tool --deselect tests/test_tools.py::test_router_dispatch_known_tool`
-(88 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
+(88 tests should pass). Lightweight deps: `pip install -r requirements-test.txt` (in a Debian sandbox `pyautogui`'s helpers may fail to build; the subset above doesn't need them). Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
 
 ## Architecture
 
@@ -84,7 +86,6 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 ### P2: code health
 
 - `requirements.txt` is unpinned. Pin known-good versions (the owner's working venv: faster-whisper ≥1.1, ctranslate2 4.x, vosk 0.3.45, kokoro ≥0.9.4) to stop surprise breakage.
-- There is no CI. Add a GitHub Actions `windows-latest` job running the portable subset of pytest.
 
 ### P3: nice to have
 

@@ -5,6 +5,7 @@ Say **"Sebastian"**, wait for "Yes?", and tell him what to do: open apps, click 
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
 ![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![License](https://img.shields.io/badge/license-MIT-green)
+[![tests](https://github.com/Meeoorree/sebastian/actions/workflows/tests.yml/badge.svg)](https://github.com/Meeoorree/sebastian/actions/workflows/tests.yml)
 
 ## What he can do
 
@@ -89,7 +90,7 @@ macros/        macros.yaml (your trigger phrases)
 tests/         pytest suite
 ```
 
-Run the tests with `.venv\Scripts\python -m pytest`.
+Run the tests with `.venv\Scripts\python -m pytest`. GitHub Actions runs them on Windows for every push (without the models: `requirements-test.txt`).
 
 ## Tech
 
