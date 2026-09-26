@@ -204,70 +204,54 @@ def _parse_tool_args(raw) -> dict:
     return raw
 
 
-def _call_openai_provider(provider_cfg: dict, temperature: float, full_messages: list[dict]) -> str:
-    """Call any OpenAI-compatible provider (LM Studio, NVIDIA NIM, etc.)."""
-    model = provider_cfg["model"]
-    base_url = provider_cfg["base_url"]
-    api_key = get_api_key(provider_cfg)
-    client = _get_openai_client(base_url, api_key)
+def _openai_adapter(provider_cfg: dict, temperature: float):
+    """OpenAI-compatible providers (DeepSeek, LM Studio, NVIDIA NIM, ...)."""
+    client = _get_openai_client(provider_cfg["base_url"], get_api_key(provider_cfg))
+
+    def send(messages: list[dict]):
+        return client.chat.completions.create(
+            model=provider_cfg["model"], messages=messages,
+            tools=TOOL_SCHEMAS, temperature=temperature,
+        ).choices[0].message
+
+    def tool_reply(tc, result: str) -> dict:
+        return {"role": "tool", "content": result, "tool_call_id": tc.id}
+
+    return send, tool_reply
+
+
+def _ollama_adapter(provider_cfg: dict, temperature: float):
+    """Local Ollama models."""
+    def send(messages: list[dict]):
+        return ollama.chat(model=provider_cfg["model"], messages=messages, tools=TOOL_SCHEMAS).message
+
+    def tool_reply(tc, result: str) -> dict:
+        return {"role": "tool", "content": result, "name": tc.function.name}
+
+    return send, tool_reply
+
+
+def _run_tool_loop(send, tool_reply, full_messages: list[dict]) -> str:
+    """Ask the LLM, run the tools it calls, repeat until it answers in text."""
     tool_count = 0
     for _ in range(_MAX_TOOL_LOOPS):
         _check_abort()
-        resp = client.chat.completions.create(
-            model=model,
-            messages=full_messages,
-            tools=TOOL_SCHEMAS,
-            temperature=temperature,
-        )
-        msg = resp.choices[0].message
-        if msg.tool_calls:
-            full_messages.append(msg.model_dump())
-            for tc in msg.tool_calls:
-                _check_abort()
-                args = _parse_tool_args(tc.function.arguments)
-                tool_count += 1
-                _broadcast({"type": "tool", "name": tc.function.name, "args": args})
-                if tool_count == 4:
-                    _speak_if_unmuted("Working on it.")
-                result = _exec_tool_with_retry(tc.function.name, args)
-                print(f"[Tool: {tc.function.name}] {result[:120]}")
-                _broadcast({"type": "tool_result", "name": tc.function.name, "result": result[:200]})
-                full_messages.append({
-                    "role": "tool",
-                    "content": result,
-                    "tool_call_id": tc.id,
-                })
-        else:
+        msg = send(full_messages)
+        if not msg.tool_calls:
             return _strip_think(msg.content or "Done.")
-    return "Done."
-
-
-def _call_ollama_provider(provider_cfg: dict, temperature: float, full_messages: list[dict]) -> str:
-    """Call Ollama provider."""
-    model = provider_cfg["model"]
-    tool_count = 0
-    for _ in range(_MAX_TOOL_LOOPS):
-        _check_abort()
-        response = ollama.chat(model=model, messages=full_messages, tools=TOOL_SCHEMAS)
-        if response.message.tool_calls:
-            full_messages.append(response.message.model_dump())
-            for tc in response.message.tool_calls:
-                _check_abort()
-                args = _parse_tool_args(tc.function.arguments)
-                tool_count += 1
-                _broadcast({"type": "tool", "name": tc.function.name, "args": args})
-                if tool_count == 4:
-                    _speak_if_unmuted("Working on it.")
-                result = _exec_tool_with_retry(tc.function.name, args)
-                print(f"[Tool: {tc.function.name}] {result[:120]}")
-                _broadcast({"type": "tool_result", "name": tc.function.name, "result": result[:200]})
-                full_messages.append({
-                    "role": "tool",
-                    "content": result,
-                    "name": tc.function.name,
-                })
-        else:
-            return _strip_think(response.message.content or "Done.")
+        full_messages.append(msg.model_dump())
+        for tc in msg.tool_calls:
+            _check_abort()
+            name = tc.function.name
+            args = _parse_tool_args(tc.function.arguments)
+            tool_count += 1
+            _broadcast({"type": "tool", "name": name, "args": args})
+            if tool_count == 4:
+                _speak_if_unmuted("Working on it.")
+            result = _exec_tool_with_retry(name, args)
+            print(f"[Tool: {name}] {result[:120]}")
+            _broadcast({"type": "tool_result", "name": name, "result": result[:200]})
+            full_messages.append(tool_reply(tc, result))
     return "Done."
 
 
@@ -281,10 +265,8 @@ def _call_llm(full_messages: list[dict]) -> str:
     provider = providers.get(active, {})
     ptype = provider.get("type", "ollama")
 
-    if ptype == "openai":
-        return _call_openai_provider(provider, temperature, full_messages)
-    else:
-        return _call_ollama_provider(provider, temperature, full_messages)
+    adapter = _openai_adapter if ptype == "openai" else _ollama_adapter
+    return _run_tool_loop(*adapter(provider, temperature), full_messages)
 
 
 def _exec_tool_with_retry(name: str, args: dict) -> str:

@@ -27,7 +27,7 @@ The DeepSeek key comes from the `DEEPSEEK_API_KEY` environment variable. Never w
 
 In the sandbox, run:
 `pytest -q --ignore=tests/test_tts.py --ignore=tests/test_memory.py --deselect tests/test_tools.py::test_router_dispatch_unknown_tool --deselect tests/test_tools.py::test_router_dispatch_known_tool`
-(36 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
+(39 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
 
 ## Architecture
 
@@ -47,7 +47,7 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 
 | File | Role |
 |---|---|
-| `sebastian/main.py` | Orchestrator: abort/mute state, event bus, LLM tool loops (OpenAI-compatible + Ollama), system prompt |
+| `sebastian/main.py` | Orchestrator: abort/mute state, event bus, one LLM tool loop (`_run_tool_loop`) with a small adapter per provider type (OpenAI-compatible, Ollama), system prompt |
 | `sebastian/wake.py` | Vosk recognizer restricted to wake + stop phrases. Echo guard: ignores a stop word that appears in the sentence being spoken |
 | `sebastian/stt.py` | Adaptive-silence recording; Whisper `large-v3-turbo` on CUDA, `small.en` CPU fallback; adds pip `nvidia/*/bin` DLL folders on Windows |
 | `sebastian/tts.py` | Kokoro; `_pronounce()` rewrites the name to `[Sebastian](/phonemes/)`; `current_text()` feeds the echo guard |
@@ -87,7 +87,6 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 ### P2: code health
 
 - 8 copies of `_load_config` and 11 `open(_CONFIG_PATH)` calls without `encoding=` (10 reads, including 2 inline in `memory.py`, plus the write in `main.py`). Replace them with one `sebastian/config.py` (`load()`/`save()`, UTF-8), and keep the functions patchable for the tests.
-- `_call_openai_provider` and `_call_ollama_provider` in `main.py` duplicate the same tool loop. Merge them into one loop with a small per-provider "send" function.
 - `llm.get_api_key` special-cases DeepSeek by URL. Replace that with an `api_key_env` field per provider in config, so any provider can read its key from the environment.
 - `requirements.txt` is unpinned. Pin known-good versions (the owner's working venv: faster-whisper ≥1.1, ctranslate2 4.x, vosk 0.3.45, kokoro ≥0.9.4) to stop surprise breakage.
 - There is no CI. Add a GitHub Actions `windows-latest` job running the portable subset of pytest.
