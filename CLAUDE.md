@@ -85,7 +85,7 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 
 ### P2: code health
 
-- `requirements.txt` is unpinned. Pin known-good versions (the owner's working venv: faster-whisper ≥1.1, ctranslate2 4.x, vosk 0.3.45, kokoro ≥0.9.4) to stop surprise breakage.
+- `requirements.txt` caps only the versions known to work (faster-whisper, ctranslate2, vosk, kokoro, ollama). Pin the rest exactly once the owner shares `pip freeze` from the working venv; guessing caps could force downgrades.
 
 ### P3: nice to have
 

@@ -42,7 +42,7 @@ echo [2/4] Activating environment...
 call .venv\Scripts\activate.bat
 
 echo [3/4] Installing dependencies (this may take a few minutes)...
-pip install -r requirements.txt --quiet
+pip install -r requirements.txt --quiet --retries 10 --timeout 60
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install dependencies.
     pause

@@ -1,8 +1,11 @@
-faster-whisper>=1.1.0
-vosk>=0.3.45
+# Versions with an upper limit are the ones Sebastian is known to work with;
+# the next major version may change APIs, so it is not picked up by surprise.
+faster-whisper>=1.1.0,<2
+ctranslate2>=4.0,<5          # Whisper engine used by faster-whisper; 4.x = CUDA 12
+vosk==0.3.45                 # wake word; newer builds are not tested
 nvidia-cublas-cu12
-kokoro>=0.9.4
-ollama>=0.4.0
+kokoro>=0.9.4,<1.0           # voice
+ollama>=0.4.0,<1             # 0.4 changed replies to objects (response.message)
 openai>=1.0.0
 chromadb>=0.6.0
 pyaudio>=0.2.14
@@ -14,6 +17,6 @@ sqlalchemy>=2.0.0
 numpy>=1.26.0
 sounddevice>=0.5.0
 fastapi>=0.115.0
-uvicorn>=0.34.0
+uvicorn[standard]>=0.34.0    # [standard] brings WebSocket support for the dashboard chat
 pytest>=8.0.0
 pytest-mock>=3.14.0
