@@ -29,7 +29,7 @@ API keys come only from environment variables: each provider's `api_key_env` nam
 
 In the sandbox, run:
 `pytest -q --ignore=tests/test_tts.py --ignore=tests/test_memory.py --deselect tests/test_tools.py::test_router_dispatch_unknown_tool --deselect tests/test_tools.py::test_router_dispatch_known_tool`
-(88 tests should pass). Lightweight deps: `pip install -r requirements-test.txt` (in a Debian sandbox `pyautogui`'s helpers may fail to build; the subset above doesn't need them). Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
+(90 tests should pass). Lightweight deps: `pip install -r requirements-test.txt` (in a Debian sandbox `pyautogui`'s helpers may fail to build; the subset above doesn't need them). Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
 
 ## Architecture
 
@@ -89,7 +89,6 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 
 ### P3: nice to have
 
-- A per-user app map in config (e.g. `apps: {vscode: "D:\\Microsoft VS Code\\Code.exe"}`) merged over `APP_MAP`.
 - A custom openWakeWord model for "Sebastian", if Vosk false-triggers too often.
 - Show the macros in the web UI and allow editing them there.
 

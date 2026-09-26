@@ -3,6 +3,8 @@ import os
 import shutil
 import webbrowser
 
+from sebastian.config import load as _load_config
+
 _USER = os.environ.get("USERNAME", "User")
 
 
@@ -82,6 +84,11 @@ _ARGS = {
 }
 
 
+def _own_apps() -> dict:
+    """The owner's names from config `apps:`, e.g. vscode: 'D:\\Microsoft VS Code\\Code.exe'."""
+    return {str(k).lower().strip(): str(v) for k, v in (_load_config().get("apps") or {}).items()}
+
+
 def _program(key: str) -> str:
     if key == "steam":
         return _steam_exe()  # registry lookup: only on Windows, only when asked
@@ -98,7 +105,8 @@ def open_app(name: str) -> str:
     """Open an application by friendly name, a program on PATH, or anything Windows can open."""
     key = name.lower().strip()
     program = _program(key)
-    for candidate in (program, _FALLBACKS.get(key)):
+    # Own path first; if it doesn't exist here, the built-in list still works.
+    for candidate in (_own_apps().get(key), program, _FALLBACKS.get(key)):
         path = candidate and _find(candidate)
         if not path:
             continue

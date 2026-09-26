@@ -41,6 +41,7 @@ memory:
   db_path: sebastian/data/memory.db
   chroma_path: sebastian/data/chroma
   top_k: 3
+apps: {}       # your own app names for open_app, tried first, e.g.  vscode: 'D:\Microsoft VS Code\Code.exe'
 tools:
   allowed_paths:
   - ~/Documents

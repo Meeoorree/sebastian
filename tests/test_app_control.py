@@ -12,6 +12,7 @@ def app(monkeypatch):
     monkeypatch.setitem(sys.modules, "winreg", None)  # importing must not need it
     monkeypatch.delitem(sys.modules, "sebastian.tools.app_control", raising=False)
     mod = importlib.import_module("sebastian.tools.app_control")
+    monkeypatch.setattr(mod, "_load_config", lambda: {})
     yield mod
     sys.modules.pop("sebastian.tools.app_control", None)
 
@@ -72,3 +73,24 @@ def test_steam_is_looked_up_only_when_opened(app, launched, monkeypatch):
     assert looked_up == []
     assert app.open_app("steam") == "Opening steam."
     assert looked_up == [1] and launched == [("popen", [r"E:\Steam\steam.exe"])]
+
+
+# --- the owner's own names from config `apps:` ---
+
+MY_CODE = r"D:\Microsoft VS Code\Code.exe"
+
+
+def test_own_app_path_is_used_first(app, launched, monkeypatch):
+    monkeypatch.setattr(app, "_load_config", lambda: {"apps": {"VSCode": MY_CODE, "obs": r"C:\OBS\obs64.exe"}})
+    monkeypatch.setattr(app.os.path, "isfile", lambda p: p in (MY_CODE, r"C:\OBS\obs64.exe"))
+    monkeypatch.setattr(app.subprocess, "Popen", lambda args, **kw: launched.append(("popen", args)))
+    assert app.open_app("vscode") == "Opening vscode."
+    assert app.open_app("OBS") == "Opening OBS."
+    assert launched == [("popen", [MY_CODE]), ("popen", [r"C:\OBS\obs64.exe"])]
+
+
+def test_missing_own_path_falls_back_to_built_in(app, launched, monkeypatch):
+    # e.g. someone else cloned the repo with the owner's config.yaml
+    monkeypatch.setattr(app, "_load_config", lambda: {"apps": {"vscode": r"Z:\nowhere\Code.exe"}})
+    assert app.open_app("vscode") == "Opening vscode."
+    assert launched == [("popen", [CODE_CMD])]

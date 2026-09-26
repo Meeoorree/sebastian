@@ -70,6 +70,7 @@ Change the list with `tools.confirm` in `config.yaml` (`[]` turns confirmation o
 | `stt` | `model`, `device`, `prompt` (vocabulary hints — add your apps here), `silence_seconds`, `no_speech_timeout` |
 | `llm` | `active_provider` and `providers` — any OpenAI-compatible API, or Ollama. `api_key_env` names the environment variable with the key |
 | `tts` | `voice`, `speed`, `name_phonemes` |
+| `apps` | your own names for `open_app`, tried first, e.g. `vscode: 'D:\Microsoft VS Code\Code.exe'` (if the path doesn't exist, the built-in list is used) |
 | `tools` | `allowed_paths` (folders the file tools may touch), `code_timeout`, `confirm` (tools that ask first) |
 
 Using speakers instead of headphones and he stops himself? Remove the offending word from `stop_phrases`.
