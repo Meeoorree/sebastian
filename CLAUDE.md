@@ -22,12 +22,12 @@ The DeepSeek key comes from the `DEEPSEEK_API_KEY` environment variable. Never w
 
 **Tests:** on Linux or in a cloud sandbox, only part of the suite can run:
 - `test_tts.py` needs PortAudio.
-- `test_tools.py::test_router_*` imports `winreg`, so it is Windows-only.
+- `test_tools.py::test_router_*` imports `pyautogui`, which needs a desktop session, so it is Windows-only.
 - `test_memory.py` downloads a ChromaDB embedding model.
 
 In the sandbox, run:
 `pytest -q --ignore=tests/test_tts.py --ignore=tests/test_memory.py --deselect tests/test_tools.py::test_router_dispatch_unknown_tool --deselect tests/test_tools.py::test_router_dispatch_known_tool`
-(69 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
+(75 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
 
 ## Architecture
 
@@ -78,11 +78,7 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 
 ### P1: bugs the owner has hit
 
-- **`open_app("vscode")` fails** with `[WinError 2]`. `APP_MAP` maps it to `"code"`, which is `code.cmd`, and `subprocess.Popen` without a shell doesn't resolve `.cmd`. The LLM then wastes 3–4 tool calls finding it (VS Code is installed at `D:\Microsoft VS Code\`).
-  - Fix: resolve with `shutil.which(exe)` before `Popen`.
-  - Fall back to `os.startfile` for names not in the map.
-  - Add a test.
-- **`_steam_exe()` runs at import time** (inside `APP_MAP`), so importing the router imports `winreg`. Make it lazy. This also makes the router tests runnable off-Windows.
+(none open)
 
 ### P2: code health
 

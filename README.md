@@ -11,7 +11,7 @@ Say **"Sebastian"**, wait for "Yes?", and tell him what to do: open apps, click 
 - **Wake word + barge-in** — say "Sebastian" to start; say "shut up", "stop" or "enough" at any time to cut him off mid-sentence or mid-task. Both run offline on a tiny Vosk model restricted to those few phrases, with an echo guard so his own voice can't stop him.
 - **Accurate speech recognition** — Whisper `large-v3-turbo` on the GPU (CPU fallback: `small.en`), biased toward your app names so "open VS Code" doesn't become "can we code".
 - **Knows when you're done talking** — recording stops ~1.2 s after you stop, measured against your room's noise floor, not a fixed threshold.
-- **33 desktop tools, chained agentically** — screen reading (OCR), clicking, typing, window focus, app launch (incl. Steam games), web search, weather, clipboard, volume, timers, files, Python. Up to 15 tool calls per request.
+- **33 desktop tools, chained agentically** — screen reading (OCR), clicking, typing, window focus, app launch (anything on PATH or known to Windows, incl. VS Code and Steam games), web search, weather, clipboard, volume, timers, files, Python. Up to 15 tool calls per request.
 - **Asks before anything risky** — running Python, writing a file, shutting down/restarting/sleeping the PC, or force-closing a program waits for your "yes" (see [Safety](#safety)).
 - **Macros** — phrases in `macros/macros.yaml` run a fixed list of tools instantly, without asking the LLM (English or Russian triggers).
 - **Memory** — remembers facts across sessions (SQLite + ChromaDB).

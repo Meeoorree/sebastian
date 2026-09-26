@@ -1,12 +1,13 @@
 import subprocess
 import os
+import shutil
 import webbrowser
 
 _USER = os.environ.get("USERNAME", "User")
 
 
 def _steam_exe() -> str:
-    """Resolve steam.exe from the registry, falling back to common install dirs.
+    r"""Resolve steam.exe from the registry, falling back to common install dirs.
 
     The old hardcoded C:\Program Files (x86)\Steam path is wrong on this box —
     Steam actually lives on E:. Ask Windows instead of guessing.
@@ -50,8 +51,7 @@ APP_MAP = {
     # Media
     "spotify": rf"C:\Users\{_USER}\AppData\Roaming\Spotify\Spotify.exe",
     "vlc": r"C:\Program Files\VideoLAN\VLC\vlc.exe",
-    # Gaming
-    "steam": _steam_exe(),
+    # Gaming ("steam" is looked up in the registry when opened, see _program)
     "epic games": r"C:\Program Files (x86)\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe",
     # Productivity
     "notepad": "notepad.exe",
@@ -82,24 +82,39 @@ _ARGS = {
 }
 
 
-def open_app(name: str) -> str:
-    """Open an application by friendly name."""
-    key = name.lower().strip()
-    exe = APP_MAP.get(key, key)
+def _program(key: str) -> str:
+    if key == "steam":
+        return _steam_exe()  # registry lookup: only on Windows, only when asked
+    return APP_MAP.get(key, key)
 
-    # Build arg list — no shell=True
-    args = [exe] + _ARGS.get(key, [])
+
+def _find(program: str) -> str | None:
+    """Full path of a program, searched like the command prompt does.
+    Popen alone only adds .exe, so "code" (VS Code's code.cmd) failed with WinError 2."""
+    return shutil.which(program) or (program if os.path.isfile(program) else None)
+
+
+def open_app(name: str) -> str:
+    """Open an application by friendly name, a program on PATH, or anything Windows can open."""
+    key = name.lower().strip()
+    program = _program(key)
+    for candidate in (program, _FALLBACKS.get(key)):
+        path = candidate and _find(candidate)
+        if not path:
+            continue
+        # .cmd/.bat launchers (VS Code) would flash a console window
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if path.lower().endswith((".cmd", ".bat")) else 0
+        try:
+            subprocess.Popen([path] + _ARGS.get(key, []), creationflags=flags)  # no shell=True
+            return f"Opening {name}."
+        except OSError:
+            continue
+    # Not a file we can find: let Windows resolve it (ms-settings:, App Paths like "chrome", Start-menu names)
+    target = key if os.path.isabs(program) else program
     try:
-        subprocess.Popen(args)
+        os.startfile(target)  # noqa: S606 - intended shell launch
         return f"Opening {name}."
     except Exception as e:
-        fallback = _FALLBACKS.get(key)
-        if fallback:
-            try:
-                subprocess.Popen([fallback] + _ARGS.get(key, []))
-                return f"Opening {name}."
-            except Exception:
-                pass
         return f"Could not open {name}: {e}"
 
 
