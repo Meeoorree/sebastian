@@ -50,3 +50,22 @@ def test_ollama_provider():
          patch("ollama.chat", return_value=reply) as call:
         assert chat([{"role": "user", "content": "hi"}]) == "from ollama"
     assert call.call_args.kwargs["model"] == "qwen3:4b"
+
+
+OPENROUTER = {"type": "openai", "model": "x", "base_url": "https://openrouter.ai/api/v1",
+              "api_key_env": "OPENROUTER_API_KEY"}
+
+
+def test_any_provider_reads_its_key_from_the_named_variable(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    assert get_api_key(OPENROUTER) == "sk-or-test"
+
+
+def test_missing_key_names_the_variable(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        get_api_key(OPENROUTER)
+
+
+def test_local_server_needs_no_key():
+    assert get_api_key({"type": "openai", "base_url": "http://localhost:1234/v1"}) == "lm-studio"

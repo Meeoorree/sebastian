@@ -18,7 +18,7 @@ start.bat                    :: run (sets HF_HOME, PYTHONUTF8=1, runs python -m 
 .venv\Scripts\python -m pytest -q
 ```
 
-The DeepSeek key comes from the `DEEPSEEK_API_KEY` environment variable. Never write it to `config.yaml`.
+API keys come only from environment variables: each provider's `api_key_env` names one (DeepSeek: `DEEPSEEK_API_KEY`). The repo is public, so never write a key to `config.yaml`; `web.py` refuses raw keys and never returns key values, and `tests/test_web.py` checks both.
 
 **Tests:** on Linux or in a cloud sandbox, only part of the suite can run:
 - `test_tts.py` needs PortAudio.
@@ -27,7 +27,7 @@ The DeepSeek key comes from the `DEEPSEEK_API_KEY` environment variable. Never w
 
 In the sandbox, run:
 `pytest -q --ignore=tests/test_tts.py --ignore=tests/test_memory.py --deselect tests/test_tools.py::test_router_dispatch_unknown_tool --deselect tests/test_tools.py::test_router_dispatch_known_tool`
-(79 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
+(88 tests should pass). Lightweight deps for this subset: `pip install pytest pytest-mock pyyaml numpy openai ollama fastapi uvicorn ddgs`. Audio, microphone, GPU and desktop control cannot be tested there. Mock them, and ask the owner to test on the real machine.
 
 ## Architecture
 
@@ -83,7 +83,6 @@ keyboard thread (msvcrt): Esc = abort, F2 = type, Insert = mute
 
 ### P2: code health
 
-- `llm.get_api_key` special-cases DeepSeek by URL. Replace that with an `api_key_env` field per provider in config, so any provider can read its key from the environment.
 - `requirements.txt` is unpinned. Pin known-good versions (the owner's working venv: faster-whisper ≥1.1, ctranslate2 4.x, vosk 0.3.45, kokoro ≥0.9.4) to stop surprise breakage.
 - There is no CI. Add a GitHub Actions `windows-latest` job running the portable subset of pytest.
 

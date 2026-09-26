@@ -4,12 +4,21 @@ from sebastian.config import load as _load_config
 
 
 def get_api_key(provider: dict) -> str:
-    if provider.get("base_url") == "https://api.deepseek.com":
-        key = os.environ.get("DEEPSEEK_API_KEY")
+    """API key for an OpenAI-compatible provider.
+
+    Keys live in environment variables, never in config.yaml (the repo is public):
+    a provider names its variable with `api_key_env`, e.g. OPENROUTER_API_KEY.
+    Local servers (LM Studio, ...) need no key.
+    """
+    env = provider.get("api_key_env")
+    if not env and provider.get("base_url") == "https://api.deepseek.com":
+        env = "DEEPSEEK_API_KEY"  # configs from before api_key_env existed
+    if env:
+        key = os.environ.get(env)
         if not key:
-            raise RuntimeError("Set DEEPSEEK_API_KEY in Windows before starting Sebastian")
+            raise RuntimeError(f"Set {env} in Windows before starting Sebastian")
         return key
-    return provider.get("api_key") or "lm-studio"
+    return provider.get("api_key") or "lm-studio"  # old configs; the web UI no longer writes keys
 
 
 def chat(messages: list[dict]) -> str:

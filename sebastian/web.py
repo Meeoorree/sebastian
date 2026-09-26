@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 import json
+import re
 import threading
 from pathlib import Path
 
@@ -102,7 +103,7 @@ async def api_providers():
             "model": prov.get("model", ""),
             "type": prov.get("type", "ollama"),
             "base_url": prov.get("base_url", ""),
-            "api_key": prov.get("api_key", ""),
+            "api_key_env": prov.get("api_key_env", ""),  # a variable name, never the key
         }
     return JSONResponse({"providers": result, "active": active})
 
@@ -116,21 +117,35 @@ async def api_set_provider(provider_key: str):
     return JSONResponse({"status": "error", "message": "Unknown provider"}, status_code=400)
 
 
+_ENV_NAME = re.compile(r"[A-Z_][A-Z0-9_]{0,63}")
+_KEY_HELP = ('API keys are not saved in config.yaml (it is in a public repo). In a terminal run  '
+             'setx OPENROUTER_API_KEY "your-key"  (any name in capitals), restart Sebastian, '
+             'and enter the name, e.g. OPENROUTER_API_KEY, as the key variable.')
+
+
 @app.put("/api/providers/{provider_key}")
 async def api_upsert_provider(provider_key: str, request: Request):
-    """Add or update a provider."""
+    """Add or update a provider. It stores the NAME of the environment variable
+    that holds the API key (api_key_env); a raw key is refused."""
     from sebastian.main import _load_config, _save_config
     body = await request.json()
+    env = str(body.get("api_key_env") or "").strip()
+    if body.get("api_key") or (env and not _ENV_NAME.fullmatch(env)):
+        return JSONResponse({"status": "error", "message": _KEY_HELP}, status_code=400)
     cfg = _load_config()
     providers = cfg.setdefault("llm", {}).setdefault("providers", {})
-    providers[provider_key] = {
+    old = providers.get(provider_key, {})
+    new = {
         "type": body.get("type", "openai"),
         "label": body.get("label", provider_key),
         "model": body.get("model", ""),
         "base_url": body.get("base_url", ""),
     }
-    if body.get("api_key") and provider_key != "deepseek":
-        providers[provider_key]["api_key"] = body["api_key"]
+    if env:
+        new["api_key_env"] = env
+    if "api_key" in old:
+        new["api_key"] = old["api_key"]  # set by hand in an old config; keep it working
+    providers[provider_key] = new
     _save_config(cfg)
     return JSONResponse({"status": "ok", "provider": provider_key})
 

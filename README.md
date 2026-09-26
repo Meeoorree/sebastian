@@ -37,7 +37,7 @@ start.bat
 
 `install.bat` creates `.venv`, installs dependencies and downloads the models (~1.7 GB). If your connection drops, just run it again — downloads resume.
 
-The API key is read from the environment and never written to `config.yaml`.
+The API key is read from the environment and never written to `config.yaml`. Other providers work the same way: add one in the dashboard (Config tab) and give the **name** of the variable that holds its key, e.g. `OPENROUTER_API_KEY`, after `setx OPENROUTER_API_KEY "your-key"`. The dashboard refuses a pasted key, so it can't end up in the repo.
 
 ## Using him
 
@@ -67,7 +67,7 @@ Change the list with `tools.confirm` in `config.yaml` (`[]` turns confirmation o
 |---|---|
 | `wake_word` | `phrases` (wake), `stop_phrases` (barge-in) |
 | `stt` | `model`, `device`, `prompt` (vocabulary hints — add your apps here), `silence_seconds`, `no_speech_timeout` |
-| `llm` | `active_provider` and `providers` — any OpenAI-compatible API, or Ollama |
+| `llm` | `active_provider` and `providers` — any OpenAI-compatible API, or Ollama. `api_key_env` names the environment variable with the key |
 | `tts` | `voice`, `speed`, `name_phonemes` |
 | `tools` | `allowed_paths` (folders the file tools may touch), `code_timeout`, `confirm` (tools that ask first) |
 

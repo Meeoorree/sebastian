@@ -465,6 +465,8 @@
     font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 1px;
     color: var(--text-dim); text-transform: uppercase;
   }
+  .setting-hint { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+  .setting-hint code { color: var(--gold); }
   .setting-input {
     background: rgba(0, 20, 50, 0.5); border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm); padding: 8px 10px; color: var(--text);
@@ -802,8 +804,12 @@
       <input class="setting-input" type="text" id="pm-url" placeholder="https://api.openai.com/v1">
     </div>
     <div class="setting-row">
-      <label class="setting-label">API Key (optional)</label>
-      <input class="setting-input" type="password" id="pm-apikey" placeholder="sk-...">
+      <label class="setting-label">API key variable (optional)</label>
+      <input class="setting-input" type="text" id="pm-keyenv" placeholder="OPENROUTER_API_KEY" autocomplete="off" spellcheck="false">
+      <div class="setting-hint">Name of a Windows environment variable that holds the key, not the key itself.
+        Set it once with <code>setx OPENROUTER_API_KEY "your-key"</code> and restart Sebastian.
+        Keys are never saved in config.yaml.</div>
+      <div class="setting-hint" id="pm-error" style="color: var(--red, #ff5c5c); display: none;"></div>
     </div>
     <div class="modal-btns">
       <button class="settings-btn" onclick="closeProviderModal()">Cancel</button>
@@ -1113,7 +1119,7 @@ function openProviderModal(editKey) {
     document.getElementById('pm-type').value = p.type || 'openai';
     document.getElementById('pm-model').value = p.model || '';
     document.getElementById('pm-url').value = p.base_url || '';
-    document.getElementById('pm-apikey').value = '';
+    document.getElementById('pm-keyenv').value = p.api_key_env || '';
   } else {
     title.textContent = 'Add Provider';
     editHidden.value = '';
@@ -1123,8 +1129,9 @@ function openProviderModal(editKey) {
     document.getElementById('pm-type').value = 'openai';
     document.getElementById('pm-model').value = '';
     document.getElementById('pm-url').value = '';
-    document.getElementById('pm-apikey').value = '';
+    document.getElementById('pm-keyenv').value = '';
   }
+  document.getElementById('pm-error').style.display = 'none';
   modal.classList.add('show');
 }
 
@@ -1142,10 +1149,16 @@ async function saveProvider() {
     model: document.getElementById('pm-model').value,
     base_url: document.getElementById('pm-url').value,
   };
-  const apiKey = document.getElementById('pm-apikey').value;
-  if (apiKey) body.api_key = apiKey;
+  const keyEnv = document.getElementById('pm-keyenv').value.trim();
+  if (keyEnv) body.api_key_env = keyEnv;
   try {
-    await fetch('/api/providers/' + key, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const r = await fetch('/api/providers/' + key, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!r.ok) {
+      const err = document.getElementById('pm-error');
+      err.textContent = (await r.json()).message || 'Could not save.';
+      err.style.display = 'block';
+      return;
+    }
     closeProviderModal();
     await loadProvidersFull();
     loadProviders();
